@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
@@ -36,7 +37,7 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
     console.log(`🤖 Bot đã sẵn sàng! Đăng nhập với tên: ${client.user.tag}`);
     
     // Deploy commands

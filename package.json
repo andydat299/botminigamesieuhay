@@ -1,21 +1,20 @@
 {
-  "name": "discord-minigame-bot",
+  "name": "botminigamesieuhay",
   "version": "1.0.0",
-  "description": "Discord bot với nhiều minigame và chức năng",
+  "description": "Discord bot with minigames using MongoDB",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
-    "discord.js": "^14.13.0",
-    "sqlite3": "^5.1.6",
-    "node-cron": "^3.0.2"
+    "discord.js": "^14.14.1",
+    "mongodb": "^6.3.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["discord", "bot", "minigames", "economy"],
-  "author": "Your Name",
+  "author": "",
   "license": "MIT"
 }
