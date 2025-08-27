@@ -1,3 +1,15 @@
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
+client.commands = new Collection();
+
 client.on('interactionCreate', async (interaction) => {
     if (interaction.isChatInputCommand()) {
         const command = client.slashCommands.get(interaction.commandName);
@@ -67,3 +79,6 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 });
+
+// Login to Discord with your bot token
+client.login(process.env.TOKEN);
