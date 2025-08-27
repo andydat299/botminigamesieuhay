@@ -1,108 +1,67 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Database = require('../database/database');
 
 module.exports = {
-    name: 'leaderboard',
-    description: 'Xem bảng xếp hạng',
-    async execute(message, args, client) {
-        const type = args[0]?.toLowerCase() || 'balance';
-
+    data: new SlashCommandBuilder()
+        .setName('leaderboard')
+        .setDescription('Xem bảng xếp hạng giàu nhất')
+        .addStringOption(option =>
+            option.setName('type')
+                .setDescription('Loại bảng xếp hạng')
+                .setRequired(false)
+                .addChoices(
+                    { name: '💰 Giàu nhất', value: 'balance' },
+                    { name: '🏆 Level cao nhất', value: 'level' }
+                )),
+    
+    async execute(interaction) {
+        const type = interaction.options.getString('type') || 'balance';
+        
         try {
-            let query;
+            let users;
             let title;
-            let description;
-
-            switch (type) {
-                case 'balance':
-                case 'coins':
-                    query = 'SELECT id, username, balance FROM users ORDER BY balance DESC LIMIT 10';
-                    title = '💰 Bảng xếp hạng Balance';
-                    description = 'Top 10 người dùng giàu nhất';
-                    break;
-                
-                case 'level':
-                case 'xp':
-                    query = 'SELECT id, username, xp, (xp / 100 + 1) as level FROM users ORDER BY xp DESC LIMIT 10';
-                    title = '🏆 Bảng xếp hạng Level';
-                    description = 'Top 10 người dùng level cao nhất';
-                    break;
-                
-                default:
-                    return message.reply('❌ Loại bảng xếp hạng không hợp lệ! Sử dụng: `balance` hoặc `level`');
+            let fieldName;
+            
+            if (type === 'balance') {
+                users = await Database.getTopUsers('balance', 10);
+                title = '💰 Top 10 người giàu nhất';
+                fieldName = 'coins';
+            } else {
+                users = await Database.getTopUsers('level', 10);
+                title = '🏆 Top 10 level cao nhất';
+                fieldName = 'level';
             }
-
-            Database.db.all(query, [], (err, rows) => {
-                if (err) {
-                    console.error('Leaderboard error:', err);
-                    return message.reply('❌ Có lỗi xảy ra khi tải bảng xếp hạng!');
-                }
-
-                if (!rows || rows.length === 0) {
-                    return message.reply('❌ Chưa có dữ liệu cho bảng xếp hạng!');
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(title)
-                    .setDescription(description)
-                    .setColor('#ffd700')
-                    .setTimestamp();
-
-                let leaderboardText = '';
-                const medals = ['🥇', '🥈', '🥉'];
-
-                rows.forEach((user, index) => {
-                    const rank = index + 1;
-                    const medal = rank <= 3 ? medals[index] : `${rank}.`;
-                    
-                    let value;
-                    if (type === 'balance' || type === 'coins') {
-                        value = `${user.balance.toLocaleString()} coins`;
-                    } else {
-                        value = `Level ${Math.floor(user.level)} (${user.xp} XP)`;
-                    }
-
-                    leaderboardText += `${medal} **${user.username}** - ${value}\n`;
+            
+            if (!users || users.length === 0) {
+                return await interaction.reply({ 
+                    content: '❌ Không có dữ liệu bảng xếp hạng!', 
+                    ephemeral: true 
                 });
-
-                embed.addFields({
-                    name: '🏆 Bảng xếp hạng',
-                    value: leaderboardText,
-                    inline: false
-                });
-
-                // Tìm vị trí của user hiện tại
-                const userId = message.author.id;
-                let userRankQuery;
-                
-                if (type === 'balance' || type === 'coins') {
-                    userRankQuery = `
-                        SELECT COUNT(*) + 1 as rank 
-                        FROM users 
-                        WHERE balance > (SELECT balance FROM users WHERE id = ?)
-                    `;
-                } else {
-                    userRankQuery = `
-                        SELECT COUNT(*) + 1 as rank 
-                        FROM users 
-                        WHERE xp > (SELECT xp FROM users WHERE id = ?)
-                    `;
-                }
-
-                Database.db.get(userRankQuery, [userId], (err, rankResult) => {
-                    if (!err && rankResult) {
-                        embed.setFooter({ 
-                            text: `Vị trí của bạn: #${rankResult.rank} | Dùng !leaderboard [balance/level]`,
-                            iconURL: message.author.displayAvatarURL()
-                        });
-                    }
-
-                    message.reply({ embeds: [embed] });
-                });
-            });
-
+            }
+            
+            const embed = new EmbedBuilder()
+                .setTitle(title)
+                .setColor('#FFD700')
+                .setTimestamp();
+            
+            let description = '';
+            for (let i = 0; i < users.length; i++) {
+                const user = users[i];
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
+                const value = type === 'balance' ? `${user.balance.toLocaleString()} coins` : `Level ${user.level || 1}`;
+                description += `${medal} <@${user.userId}> - ${value}\n`;
+            }
+            
+            embed.setDescription(description);
+            
+            await interaction.reply({ embeds: [embed] });
+            
         } catch (error) {
-            console.error('Leaderboard error:', error);
-            message.reply('❌ Có lỗi xảy ra khi tải bảng xếp hạng!');
+            console.error('Leaderboard command error:', error);
+            await interaction.reply({ 
+                content: '❌ Có lỗi xảy ra khi xem bảng xếp hạng!', 
+                ephemeral: true 
+            });
         }
     }
 };
