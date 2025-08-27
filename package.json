@@ -1,0 +1,21 @@
+{
+  "name": "discord-minigame-bot",
+  "version": "1.0.0",
+  "description": "Discord bot với nhiều minigame và chức năng",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.13.0",
+    "sqlite3": "^5.1.6",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["discord", "bot", "minigames", "economy"],
+  "author": "Your Name",
+  "license": "MIT"
+}
