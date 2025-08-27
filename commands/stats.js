@@ -1,94 +1,59 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Database = require('../database/database');
 
 module.exports = {
-    name: 'stats',
-    description: 'Xem thống kê game của bạn',
-
-    async execute(message, args, client) {
-        const userId = message.author.id;
-        const username = message.author.username;
-
-        await Database.createUser(userId, username);
-
-        // Lấy stats cho tất cả games
-        const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
-        const statsPromises = games.map(game => 
-            Database.getGameStats(userId, game)
-        );
-
+    data: new SlashCommandBuilder()
+        .setName('stats')
+        .setDescription('Xem thống kê game của bạn')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Người dùng để xem stats')
+                .setRequired(false)
+        ),
+    
+    async execute(interaction) {
+        const targetUser = interaction.options.getUser('user') || interaction.user;
+        const userId = targetUser.id;
+        
         try {
+            // Lấy stats cho tất cả games
+            const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
+            const statsPromises = games.map(game =>
+                Database.getStats(userId, game)
+            );
+            
             const allStats = await Promise.all(statsPromises);
             
             const embed = new EmbedBuilder()
-                .setTitle(`📊 Thống kê game của ${username}`)
-                .setColor('#9932cc')
-                .setThumbnail(message.author.displayAvatarURL());
-
-            let totalGames = 0;
-            let totalWins = 0;
-            let totalLosses = 0;
-            let totalDraws = 0;
-
+                .setTitle(`📊 Thống kê của ${targetUser.displayName}`)
+                .setColor('#00ff00')
+                .setTimestamp();
+            
+            // Tạo description với stats của tất cả games
+            let description = '';
             games.forEach((game, index) => {
-                const stat = allStats[index];
-                if (stat) {
-                    const winRate = stat.total_games > 0 ? 
-                        ((stat.wins / stat.total_games) * 100).toFixed(1) : '0.0';
-
-                    const gameEmojis = {
-                        'rps': '✂️',
-                        'guess': '🎯',
-                        'trivia': '🧠',
-                        'slots': '🎰',
-                        'coinflip': '🪙',
-                        'mining': '⛏️',
-                        'adventure': '⚔️',
-                        'sicbo': '🎲'
-                    };
-
-                    const gameNames = {
-                        'rps': 'Kéo Búa Bao',
-                        'guess': 'Đoán Số',
-                        'trivia': 'Câu Hỏi Vui',
-                        'slots': 'Máy Đánh Bạc',
-                        'coinflip': 'Tung Đồng Xu',
-                        'mining': 'Đào Đá',
-                        'adventure': 'Phiêu Lưu',
-                        'sicbo': 'Tài Xỉu'
-                    };
-
-                    embed.addFields({
-                        name: `${gameEmojis[game]} ${gameNames[game]}`,
-                        value: `🎮 ${stat.total_games} games | 🏆 ${stat.wins}W ${stat.losses}L ${stat.draws}D | 📈 ${winRate}%`,
-                        inline: false
-                    });
-
-                    totalGames += stat.total_games;
-                    totalWins += stat.wins;
-                    totalLosses += stat.losses;
-                    totalDraws += stat.draws;
+                const stats = allStats[index];
+                if (stats && (stats.wins > 0 || stats.losses > 0)) {
+                    const total = stats.wins + stats.losses;
+                    const winRate = total > 0 ? ((stats.wins / total) * 100).toFixed(1) : '0.0';
+                    description += `**${game.toUpperCase()}:** ${stats.wins}W/${stats.losses}L (${winRate}%)\n`;
                 }
             });
-
-            const overallWinRate = totalGames > 0 ? 
-                ((totalWins / totalGames) * 100).toFixed(1) : '0.0';
-
-            embed.addFields({
-                name: '🏆 Tổng kết',
-                value: `🎮 **${totalGames}** games tổng | 🎯 **${overallWinRate}%** win rate\n🏆 **${totalWins}** thắng | 😢 **${totalLosses}** thua | 🤝 **${totalDraws}** hòa`,
-                inline: false
-            });
-
-            if (totalGames === 0) {
-                embed.setDescription('Bạn chưa chơi game nào! Hãy thử các lệnh: !rps, !guess, !trivia, !slots, !coinflip, !mining, !adventure, !sicbo');
+            
+            if (!description) {
+                description = 'Chưa có dữ liệu thống kê nào!';
             }
-
-            message.reply({ embeds: [embed] });
-
+            
+            embed.setDescription(description);
+            
+            await interaction.reply({ embeds: [embed] });
+            
         } catch (error) {
-            console.error('Stats error:', error);
-            message.reply('❌ Có lỗi xảy ra khi tải thống kê!');
+            console.error('Error fetching stats:', error);
+            await interaction.reply({ 
+                content: '❌ Có lỗi xảy ra khi lấy thống kê!', 
+                ephemeral: true 
+            });
         }
     }
 };

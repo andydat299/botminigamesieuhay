@@ -15,7 +15,8 @@ module.exports = {
         const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
         const statsPromises = games.map(game => 
             Database.getGameStats(userId, game)
-        );/ Lấy stats cho tất cả games
+        );
+        // Lấy stats cho tất cả games
         const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
         const statsPromises = games.map(game => 
             Database.getGameStats(userId, game)
