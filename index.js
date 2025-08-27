@@ -17,7 +17,7 @@ client.slashCommands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath)
-        .filter(file => file.endsWith('.js') && !file.includes('broken'));
+        .filter(file => file.endsWith('.js') && !file.includes('broken') && !file.includes('disabled'));
     
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);

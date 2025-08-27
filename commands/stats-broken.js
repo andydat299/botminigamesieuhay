@@ -1,26 +1,6 @@
-const { EmbedBuilder } = require('discord.js');
-const Database = require('../database/database');
-
-module.exports = {
-    name: 'stats',
-    description: 'Xem thống kê game của bạn',
-
-    async execute(message, args, client) {
-        const userId = message.author.id;
-        const username = message.author.username;
-
-        await Database.createUser(userId, username);
-
-        // Lấy stats cho tất cả games
-        const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
-        const statsPromises = games.map(game => 
-            Database.getGameStats(userId, game)
-        );
-        // Lấy stats cho tất cả games
-        const games = ['rps', 'guess', 'trivia', 'slots', 'coinflip', 'mining', 'adventure', 'sicbo'];
-        const statsPromises = games.map(game => 
-            Database.getGameStats(userId, game)
-        );der } = require('discord.js');
+// This file has been disabled due to syntax errors
+// Use stats.js instead
+module.exports = {};
 const Database = require('../database/database');
 
 module.exports = {
