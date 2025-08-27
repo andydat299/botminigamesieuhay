@@ -1,81 +1,87 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Database = require('../database/database');
 
 module.exports = {
-    name: 'rps',
-    description: 'Chơi kéo búa bao với bot',
-    async execute(message, args, client) {
-        if (!args[0]) {
-            return message.reply('❌ Vui lòng chọn: `!rps rock`, `!rps paper`, hoặc `!rps scissors`');
+    data: new SlashCommandBuilder()
+        .setName('rps')
+        .setDescription('Chơi kéo búa bao với bot')
+        .addStringOption(option =>
+            option.setName('choice')
+                .setDescription('Lựa chọn của bạn')
+                .setRequired(true)
+                .addChoices(
+                    { name: '✂️ Kéo', value: 'scissors' },
+                    { name: '🗿 Đá', value: 'rock' },
+                    { name: '📄 Giấy', value: 'paper' }
+                ))
+        .addIntegerOption(option =>
+            option.setName('amount')
+                .setDescription('Số tiền cược (tối thiểu 10)')
+                .setRequired(true)
+                .setMinValue(10)),
+
+    async execute(interaction) {
+        const userId = interaction.user.id;
+        const userChoice = interaction.options.getString('choice');
+        const amount = interaction.options.getInteger('amount');
+
+        try {
+            const balance = await Database.getBalance(userId);
+
+            if (balance < amount) {
+                return await interaction.reply({
+                    content: `❌ Bạn không đủ tiền! Số dư hiện tại: **${balance.toLocaleString()}** coins`,
+                    ephemeral: true
+                });
+            }
+
+            const choices = ['rock', 'paper', 'scissors'];
+            const botChoice = choices[Math.floor(Math.random() * choices.length)];
+
+            const choiceEmojis = {
+                rock: '🗿',
+                paper: '📄',
+                scissors: '✂️'
+            };
+
+            let result;
+            if (userChoice === botChoice) {
+                result = 'tie';
+            } else if (
+                (userChoice === 'rock' && botChoice === 'scissors') ||
+                (userChoice === 'paper' && botChoice === 'rock') ||
+                (userChoice === 'scissors' && botChoice === 'paper')
+            ) {
+                result = 'win';
+            } else {
+                result = 'lose';
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('✂️🗿📄 Rock Paper Scissors')
+                .setColor(result === 'win' ? '#00ff00' : result === 'lose' ? '#ff0000' : '#ffff00')
+                .setTimestamp();
+
+            if (result === 'win') {
+                await Database.addBalance(userId, amount);
+                await Database.updateStats(userId, 'rps', true);
+                embed.setDescription(`🎉 **Thắng!**\n\nBạn: ${choiceEmojis[userChoice]}\nBot: ${choiceEmojis[botChoice]}\n\n💰 +${amount.toLocaleString()} coins`);
+            } else if (result === 'lose') {
+                await Database.removeBalance(userId, amount);
+                await Database.updateStats(userId, 'rps', false);
+                embed.setDescription(`😢 **Thua!**\n\nBạn: ${choiceEmojis[userChoice]}\nBot: ${choiceEmojis[botChoice]}\n\n💸 -${amount.toLocaleString()} coins`);
+            } else {
+                embed.setDescription(`🤝 **Hòa!**\n\nBạn: ${choiceEmojis[userChoice]}\nBot: ${choiceEmojis[botChoice]}\n\n💰 Không mất tiền`);
+            }
+
+            await interaction.reply({ embeds: [embed] });
+
+        } catch (error) {
+            console.error('RPS command error:', error);
+            await interaction.reply({
+                content: '❌ Có lỗi xảy ra khi chơi RPS!',
+                ephemeral: true
+            });
         }
-
-        const choices = ['rock', 'paper', 'scissors'];
-        const userChoice = args[0].toLowerCase();
-
-        if (!choices.includes(userChoice)) {
-            return message.reply('❌ Lựa chọn không hợp lệ! Chọn: rock, paper, hoặc scissors');
-        }
-
-        const userId = message.author.id;
-        const username = message.author.username;
-
-        // Tạo user nếu chưa có
-        await Database.createUser(userId, username);
-
-        const botChoice = choices[Math.floor(Math.random() * choices.length)];
-        
-        // Emoji cho từng lựa chọn
-        const emojis = {
-            rock: '🗿',
-            paper: '📄',
-            scissors: '✂️'
-        };
-
-        let result;
-        let reward = 0;
-        let xpGain = 0;
-
-        if (userChoice === botChoice) {
-            result = 'draw';
-            reward = 50;
-            xpGain = 5;
-        } else if (
-            (userChoice === 'rock' && botChoice === 'scissors') ||
-            (userChoice === 'paper' && botChoice === 'rock') ||
-            (userChoice === 'scissors' && botChoice === 'paper')
-        ) {
-            result = 'win';
-            reward = 150;
-            xpGain = 15;
-        } else {
-            result = 'lose';
-            reward = 0;
-            xpGain = 2;
-        }
-
-        // Cập nhật database
-        await Database.updateUserBalance(userId, reward);
-        await Database.updateUserXP(userId, xpGain);
-        await Database.updateGameStats(userId, 'rps', result);
-
-        const resultText = {
-            win: '🎉 **BẠN THẮNG!**',
-            lose: '😢 **BẠN THUA!**',
-            draw: '🤝 **HÒA!**'
-        };
-
-        const embed = new EmbedBuilder()
-            .setTitle('🎮 Kéo Búa Bao')
-            .addFields(
-                { name: '👤 Bạn chọn', value: `${emojis[userChoice]} ${userChoice}`, inline: true },
-                { name: '🤖 Bot chọn', value: `${emojis[botChoice]} ${botChoice}`, inline: true },
-                { name: '🏆 Kết quả', value: resultText[result], inline: true },
-                { name: '💰 Phần thưởng', value: `${reward} coins`, inline: true },
-                { name: '⭐ XP', value: `+${xpGain} XP`, inline: true }
-            )
-            .setColor(result === 'win' ? '#00ff00' : result === 'lose' ? '#ff0000' : '#ffff00')
-            .setFooter({ text: 'Chơi lại với !rps <rock/paper/scissors>' });
-
-        message.reply({ embeds: [embed] });
     }
 };
