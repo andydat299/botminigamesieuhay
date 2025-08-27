@@ -40,24 +40,32 @@ client.once('ready', async () => {
     console.log(`🤖 Bot đã sẵn sàng! Đăng nhập với tên: ${client.user.tag}`);
     
     // Deploy commands
-    const commands = [];
-    client.slashCommands.forEach(command => {
-        commands.push(command.data.toJSON());
-    });
-    
-    const rest = new REST().setToken(process.env.TOKEN);
-    
-    try {
-        console.log('🔄 Bắt đầu deploy slash commands...');
+    if (client.slashCommands.size > 0) {
+        const commands = [];
+        client.slashCommands.forEach(command => {
+            commands.push(command.data.toJSON());
+        });
         
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands },
-        );
-        
-        console.log('✅ Đã deploy thành công tất cả slash commands!');
-    } catch (error) {
-        console.error('❌ Lỗi khi deploy commands:', error);
+        if (process.env.TOKEN) {
+            const rest = new REST().setToken(process.env.TOKEN);
+            
+            try {
+                console.log('🔄 Bắt đầu deploy slash commands...');
+                
+                await rest.put(
+                    Routes.applicationCommands(client.user.id),
+                    { body: commands },
+                );
+                
+                console.log('✅ Đã deploy thành công tất cả slash commands!');
+            } catch (error) {
+                console.error('❌ Lỗi khi deploy commands:', error);
+            }
+        } else {
+            console.log('⚠️ Không tìm thấy TOKEN, bỏ qua việc deploy commands');
+        }
+    } else {
+        console.log('⚠️ Không có command nào để deploy');
     }
 });
 

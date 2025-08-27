@@ -1,55 +1,49 @@
-const { EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const Database = require('../database/database');
 
 module.exports = {
-    name: 'daily',
-    description: 'Nhận phần thưởng hàng ngày',
-    async execute(message, args, client) {
-        const userId = message.author.id;
-        const username = message.author.username;
-
-        // Tạo user nếu chưa có
-        await Database.createUser(userId, username);
-        const user = await Database.getUser(userId);
-
-        const today = new Date().toDateString();
-        const lastClaimed = user.daily_claimed;
-
-        if (lastClaimed === today) {
-            const embed = new EmbedBuilder()
-                .setTitle('⏰ Đã nhận daily hôm nay!')
-                .setDescription('Bạn đã nhận phần thưởng hàng ngày rồi. Quay lại vào ngày mai!')
-                .setColor('#ff0000');
+    data: new SlashCommandBuilder()
+        .setName('daily')
+        .setDescription('Nhận phần thưởng hàng ngày'),
+    
+    async execute(interaction) {
+        const userId = interaction.user.id;
+        
+        try {
+            const user = await Database.getUser(userId);
+            const now = Date.now();
+            const oneDayMs = 24 * 60 * 60 * 1000;
             
-            return message.reply({ embeds: [embed] });
+            if (user.lastDaily && (now - user.lastDaily) < oneDayMs) {
+                const timeLeft = oneDayMs - (now - user.lastDaily);
+                const hoursLeft = Math.floor(timeLeft / (60 * 60 * 1000));
+                const minutesLeft = Math.floor((timeLeft % (60 * 60 * 1000)) / (60 * 1000));
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('⏰ Daily Reward')
+                    .setDescription(`Bạn đã nhận phần thưởng hôm nay rồi!\nVui lòng quay lại sau **${hoursLeft}h ${minutesLeft}m**`)
+                    .setColor('#ff0000');
+                
+                return await interaction.reply({ embeds: [embed] });
+            }
+            
+            const reward = 1000;
+            await Database.addBalance(userId, reward);
+            await Database.updateUser(userId, { lastDaily: now });
+            
+            const embed = new EmbedBuilder()
+                .setTitle('🎁 Daily Reward')
+                .setDescription(`Bạn đã nhận được **${reward.toLocaleString()}** coins!\nHãy quay lại vào ngày mai để nhận thêm.`)
+                .setColor('#00ff00');
+            
+            await interaction.reply({ embeds: [embed] });
+            
+        } catch (error) {
+            console.error('Daily command error:', error);
+            await interaction.reply({ 
+                content: '❌ Có lỗi xảy ra khi nhận phần thưởng hàng ngày!', 
+                ephemeral: true 
+            });
         }
-
-        // Tính phần thưởng daily
-        const baseReward = 500;
-        const levelBonus = Math.floor(user.xp / 100) * 50;
-        const totalReward = baseReward + levelBonus;
-
-        // Cập nhật database
-        await Database.updateUserBalance(userId, totalReward);
-        await Database.updateUserXP(userId, 25);
-
-        // Cập nhật daily_claimed
-        Database.db.run(
-            'UPDATE users SET daily_claimed = ? WHERE id = ?',
-            [today, userId]
-        );
-
-        const embed = new EmbedBuilder()
-            .setTitle('🎁 Phần thưởng hàng ngày!')
-            .setDescription(`Bạn đã nhận được **${totalReward.toLocaleString()} coins** và **25 XP**!`)
-            .addFields(
-                { name: '💰 Phần thưởng cơ bản', value: `${baseReward.toLocaleString()} coins`, inline: true },
-                { name: '🏆 Bonus level', value: `${levelBonus.toLocaleString()} coins`, inline: true },
-                { name: '⭐ XP nhận được', value: '25 XP', inline: true }
-            )
-            .setColor('#00ff00')
-            .setFooter({ text: 'Quay lại vào ngày mai để nhận thêm!' });
-
-        message.reply({ embeds: [embed] });
     }
 };
